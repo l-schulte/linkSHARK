@@ -14,7 +14,7 @@ def start():
 
     parser = get_base_argparser('Analyze the given URI. An URI should be a GIT Repository address.', '1.0.0')
     parser.add_argument('-n', '--project-name', help='Name of the project.', required=True)
-    parser.add_argument('-ll', '--log_level', help='Log Level for stdout INFO or DEBUG.', required=False, default='INFO')
+    parser.add_argument('--debug', help='Log Level for stdout INFO or DEBUG.', required=False, default='INFO')
 
     args = parser.parse_args()
     cfg = Config(args)

@@ -35,7 +35,7 @@ class LinkSHARK:
 
         uri = create_mongodb_uri_string(cfg.user, cfg.password, cfg.host, cfg.port, cfg.authentication_db,
                                         cfg.ssl_enabled)
-        connect(cfg.db_database, host=uri)
+        connect(cfg.database, host=uri)
 
         # Get the id of the project for which the code entities shall be merged
         try:
@@ -45,7 +45,6 @@ class LinkSHARK:
             sys.exit(1)
 
         vcs_system = VCSSystem.objects(project_id=project_id).get()
-
         self._itss = []
         for its in IssueSystem.objects.filter(project_id=project_id):
             self._itss.append(its)
@@ -59,7 +58,7 @@ class LinkSHARK:
                 commit.save()
 
         elapsed = timeit.default_timer() - start_time
-        self.logger.info("Execution time: %0.5f s" % elapsed)
+        self._log.info("Execution time: %0.5f s" % elapsed)
 
     def _get_issue_links(self, commit):
         issue_links = []
@@ -78,7 +77,7 @@ class LinkSHARK:
                 issue_links.append(r.id)
         return issue_links
 
-    def _gh_label(self, issue_system, message):
+    def _gh_issues(self, issue_system, message):
         ret = []
         for m in self._direct_link_gh.finditer(message):
             try:
@@ -90,7 +89,7 @@ class LinkSHARK:
                 pass
         return ret
 
-    def _bz_label(self, issue_system, message):
+    def _bz_issues(self, issue_system, message):
         ret = []
         for m in self._direct_link_bz.finditer(message):
             try:
@@ -103,7 +102,7 @@ class LinkSHARK:
                 pass
         return ret
 
-    def _jira_label(self, issue_system, message):
+    def _jira_issues(self, issue_system, message):
         ret = []
         for m in self._direct_link_jira.finditer(message):
             try:
@@ -118,4 +117,4 @@ class LinkSHARK:
 
     def _error(self, message):
         # we log to warn because error gets to stdout in servershark
-        self._log.warn(message)
+        self._log.warning(message)

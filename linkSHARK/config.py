@@ -63,7 +63,7 @@ class Config(object):
 
     def __str__(self):
         return "Config: host: %s, port: %s, user: %s, " \
-               "password: %s, database: %s, authentication_db: %s, ssl: %s, project_name:%s, processes: %sdebug: %s" % \
+               "password: %s, database: %s, authentication_db: %s, ssl: %s, project_name:%s, debug: %s" % \
                (
                    self.host,
                    self.port,
@@ -73,8 +73,7 @@ class Config(object):
                    self.authentication_db,
                    self.ssl_enabled,
                    self.project_name,
-                   self.debug,
-                   self.processes
+                   self.debug
                )
 
 
