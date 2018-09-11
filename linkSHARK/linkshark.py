@@ -116,13 +116,14 @@ class LinkSHARK:
         for m in self._direct_link_jira.finditer(message):
             try:
                 issue_id = m.group('ID').upper()
-                try:
-                    index = self._broken_keys.index(issue_id.split('-')[0])
-                    self._log.warning('fixing broken key %s', issue_id)
-                    issue_id = issue_id.replace(self._broken_keys[index]+'-', self._correct_key+'-')
-                except ValueError:
-                    # key not broken
-                    pass
+                if self._broken_keys is not None:
+                    try:
+                        index = self._broken_keys.index(issue_id.split('-')[0])
+                        self._log.warning('fixing broken key %s', issue_id)
+                        issue_id = issue_id.replace(self._broken_keys[index]+'-', self._correct_key+'-')
+                    except ValueError:
+                        # key not broken
+                        pass
 
                 i = Issue.objects.get(issue_system_id=issue_system.id, external_id=issue_id)
                 ret.append(i)
