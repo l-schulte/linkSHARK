@@ -10,7 +10,7 @@ from linkSHARK.config import Config, setup_logging
 def start():
     setup_logging()
     logger = logging.getLogger("main")
-    logger.info("Starting memeSHARK...")
+    logger.info("Starting linkSHARK...")
 
     parser = get_base_argparser('Analyze the given URI. An URI should be a GIT Repository address.', '1.0.0')
     parser.add_argument('-n', '--project-name', help='Name of the project.', required=True)
