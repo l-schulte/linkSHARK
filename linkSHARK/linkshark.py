@@ -23,6 +23,8 @@ class LinkSHARK:
         self._direct_link_jira = re.compile('(?P<ID>[A-Z][A-Z0-9_]+-[0-9]+)', re.M)
         self._direct_link_bz = re.compile('(bug|issue|bugzilla)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
         self._direct_link_gh = re.compile('(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
+        self._broken_keys = None
+        self._correct_key = None
         pass
 
     def start(self, cfg):
@@ -48,6 +50,13 @@ class LinkSHARK:
         self._itss = []
         for its in IssueSystem.objects.filter(project_id=project_id):
             self._itss.append(its)
+
+        if len(cfg.broken_keys)>0:
+            if len(cfg.correct_key)==0:
+                self._log.critical('--correct-key must be specified if --broken-keys is used')
+                sys.exit()
+            self._broken_keys = cfg.broken_keys.split(',')
+            self._correct_key = cfg.correct_key
 
         self._log.info("Starting issue linking")
 
@@ -106,7 +115,16 @@ class LinkSHARK:
         ret = []
         for m in self._direct_link_jira.finditer(message):
             try:
-                i = Issue.objects.get(issue_system_id=issue_system.id, external_id=m.group('ID').upper())
+                issue_id = m.group('ID').upper()
+                try:
+                    index = self._broken_keys.index(issue_id.split('-')[0])
+                    self._log.warning('fixing broken key %s', issue_id)
+                    issue_id = issue_id.replace(self._broken_keys[index]+'-', self._correct_key+'-')
+                except ValueError:
+                    # key not broken
+                    pass
+
+                i = Issue.objects.get(issue_system_id=issue_system.id, external_id=issue_id)
                 ret.append(i)
 
             except Issue.DoesNotExist:

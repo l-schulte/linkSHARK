@@ -46,6 +46,8 @@ class Config(object):
         self.debug = args.debug
         self.project_name = args.project_name
         self.ssl_enabled = args.ssl
+        self.broken_keys = args.broken_keys
+        self.correct_key = args.correct_key
 
     def get_debug_level(self):
         """

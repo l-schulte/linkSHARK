@@ -14,6 +14,8 @@ def start():
 
     parser = get_base_argparser('Analyze the given URI. An URI should be a GIT Repository address.', '1.0.0')
     parser.add_argument('-n', '--project-name', help='Name of the project.', required=True)
+    parser.add_argument('--broken-keys', help='Comma seperated list of broken keys of issue references (currently only works for Jira)', required=False, default='')
+    parser.add_argument('--correct-key', help='The correct key for issue references', required=False, default='')
     parser.add_argument('--debug', help='Log Level for stdout INFO or DEBUG.', required=False, default='INFO')
 
     args = parser.parse_args()
