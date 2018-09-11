@@ -61,7 +61,7 @@ class LinkSHARK:
         self._log.info("Starting issue linking")
         commit_count = Commit.objects(vcs_system_id=vcs_system.id).count()
 
-        for i,commit in enumerate(Commit.objects(vcs_system_id=vcs_system.id)):
+        for i,commit in enumerate(Commit.objects(vcs_system_id=vcs_system.id).only('id', 'revision_hash', 'vcs_system_id', 'message')):
             if i%100==0:
                 self._log.info("%i/%i  commits finished",i,commit_count)
             issue_links = self._get_issue_links(commit)
