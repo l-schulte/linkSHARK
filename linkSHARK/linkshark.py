@@ -48,7 +48,7 @@ class LinkSHARK:
 
         vcs_system = VCSSystem.objects(project_id=project_id).get()
         self._itss = []
-        for its in IssueSystem.objects.filter(project_id=project_id):
+        for its in IssueSystem.objects(project_id=project_id):
             self._itss.append(its)
 
         if len(cfg.broken_keys)>0:
@@ -60,7 +60,7 @@ class LinkSHARK:
 
         self._log.info("Starting issue linking")
 
-        for commit in Commit.objects.filter(vcs_system_id=vcs_system.id):
+        for commit in Commit.objects(vcs_system_id=vcs_system.id):
             issue_links = self._get_issue_links(commit)
             if len(issue_links) > 0:
                 commit.linked_issue_ids = issue_links
