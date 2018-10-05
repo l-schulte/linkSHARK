@@ -23,8 +23,8 @@ class LinkSHARK:
         self._direct_link_jira = re.compile('(?P<ID>[A-Z][A-Z0-9_]+-[0-9]+)', re.M)
         self._direct_link_bz = re.compile('(bug|issue|bugzilla)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
         self._direct_link_gh = re.compile('(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
-        self._broken_keys = None
-        self._correct_key = None
+        self._broken_keys = {}
+        self._correct_key = {}
         pass
 
     def start(self, cfg):
@@ -48,15 +48,24 @@ class LinkSHARK:
 
         vcs_system = VCSSystem.objects(project_id=project_id).get()
         self._itss = []
-        for its in IssueSystem.objects(project_id=project_id):
+        self._log.info('found the following issue tracking systems:')
+        for its in IssueSystem.objects(project_id=project_id).order_by('url'):
+            self._log.info(its.url)
             self._itss.append(its)
 
         if len(cfg.broken_keys)>0:
-            if len(cfg.correct_key)==0:
-                self._log.critical('--correct-key must be specified if --broken-keys is used')
-                sys.exit()
-            self._broken_keys = cfg.broken_keys.split(',')
-            self._correct_key = cfg.correct_key
+            broken_keys_per_its = cfg.broken_keys.split(';')
+            correct_keys_per_its = cfg.correct_key.split(';')
+            if len(broken_keys_per_its) != len(self._itss):
+                self._log_critical('--broken-keys must correct keys for all issue tracking systems if specified. If there are no keys to correct for one of the ITS just use the name of the correct key twice itself')
+                sys.exit(1)
+            if len(broken_keys_per_its) != len(correct_keys_per_its):
+                self._log.critical('--broken-keys and --correct-key must specify corrections for the same number of issue tracking systems, seperated by semicolons.')
+                sys.exit(1)
+            for i,broken_keys in enumerate(broken_keys_per_its):
+                self._broken_keys[self._itss[i].url] = broken_keys.split(',')
+            for i,correct_key in enumerate(correct_keys_per_its):
+                self._correct_key[self._itss[i].url] = correct_key
 
         self._log.info("Starting issue linking")
         commit_count = Commit.objects(vcs_system_id=vcs_system.id).count()
@@ -74,6 +83,8 @@ class LinkSHARK:
 
     def _get_issue_links(self, commit):
         issue_links = []
+        self._errored_keys = set()
+        self._found_keys = set()
         for its in self._itss:
             if 'jira' in its.url:
                 issues = self._jira_issues(its, commit.message)
@@ -87,6 +98,11 @@ class LinkSHARK:
                 if r.id in issue_links:
                     continue
                 issue_links.append(r.id)
+
+        keys_not_found = self._errored_keys-self._found_keys
+        for key in keys_not_found:
+            self._error('commit %s: %s does not exist' % (commit.revision_hash, key))
+
         return issue_links
 
     def _gh_issues(self, issue_system, message):
@@ -94,11 +110,11 @@ class LinkSHARK:
         for m in self._direct_link_gh.finditer(message):
             try:
                 i = Issue.objects.get(issue_system_id=issue_system.id, external_id=m.group('ID').upper())
+                self._found_keys.add(m.group('ID').upper())
                 ret.append(i)
 
             except Issue.DoesNotExist:
-                self._error('issue: {} does not exist'.format(m.group('ID')))
-                pass
+                self._errored_keys.add(m.group('ID').upper())
         return ret
 
     def _bz_issues(self, issue_system, message):
@@ -106,12 +122,11 @@ class LinkSHARK:
         for m in self._direct_link_bz.finditer(message):
             try:
                 i = Issue.objects.get(issue_system_id=issue_system.id, external_id=m.group('ID').upper())
+                self._found_keys.add(m.group('ID').upper())
                 ret.append(i)
 
             except Issue.DoesNotExist:
-                # self._log.error('issue: {} does not exist'.format(m.group(1)))
-                self._error('issue: {} does not exist'.format(m.group('ID')))
-                pass
+                self._errored_keys.add(m.group('ID').upper())
         return ret
 
     def _jira_issues(self, issue_system, message):
@@ -119,22 +134,21 @@ class LinkSHARK:
         for m in self._direct_link_jira.finditer(message):
             try:
                 issue_id = m.group('ID').upper()
-                if self._broken_keys is not None:
+                if issue_system.url in self._broken_keys:
                     try:
-                        index = self._broken_keys.index(issue_id.split('-')[0])
+                        index = self._broken_keys[issue_system.url].index(issue_id.split('-')[0])
                         self._log.warning('fixing broken key %s', issue_id)
-                        issue_id = issue_id.replace(self._broken_keys[index]+'-', self._correct_key+'-')
+                        issue_id = issue_id.replace(self._broken_keys[issue_system.url][index]+'-', self._correct_key[issue_system.url]+'-')
                     except ValueError:
                         # key not broken
                         pass
 
                 i = Issue.objects.get(issue_system_id=issue_system.id, external_id=issue_id)
+                self._found_keys.add(m.group('ID').upper())
                 ret.append(i)
 
             except Issue.DoesNotExist:
-                # self._log.error('issue: {} does not exist'.format(m.group(0)))
-                self._error('issue: {} does not exist'.format(m.group('ID')))
-                pass
+                self._errored_keys.add(m.group('ID').upper())
         return ret
 
     def _error(self, message):
