@@ -11,7 +11,7 @@ before_install:
   - sudo pip3 install sphinx_rtd_theme
   - sudo pip3 install ghp_import
 
-install:
+script:
   - sudo python3 setup.py install
 
 after_success:
