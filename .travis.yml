@@ -5,7 +5,6 @@ python:
 
 before_install:
   - printenv | grep -E '^TRAVIS_' > .env
-  - sudo apt-get update
   - sudo apt-get install -y build-essential wget git python3-pip python3-cffi
   - sudo pip3 install -U pip setuptools
   - sudo pip3 install Sphinx
@@ -13,14 +12,14 @@ before_install:
   - sudo pip3 install ghp_import
 
 install:
-  - python setup.py install
+  - sudo python setup.py install
 
 after_success:
   - make deploy
 
 deploy:
   provider: releases
-  api_key: ${TRAVIS_GH_TOKEN}
+  api_key: ${GH_TOKEN}
   file: "plugin_packaging/linkSHARK_plugin.tar"
   skip_cleanup: true
   on:
