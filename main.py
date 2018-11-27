@@ -16,7 +16,7 @@ def start():
     parser.add_argument('-n', '--project-name', help='Name of the project.', required=True)
     parser.add_argument('--broken-keys', help='Comma seperated list of broken keys of issue references (currently only works for Jira)', required=False, default='')
     parser.add_argument('--correct-key', help='The correct key for issue references', required=False, default='')
-    parser.add_argument('--debug', help='Log Level for stdout INFO or DEBUG.', required=False, default='INFO')
+    parser.add_argument('--log-level', help='Log Level for stdout INFO or DEBUG.', required=False, default='INFO')
 
     args = parser.parse_args()
     cfg = Config(args)

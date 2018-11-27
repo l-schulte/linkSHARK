@@ -1,0 +1,18 @@
+{
+    "collections": [
+        {
+            "collection_name": "commit",
+            "desc": "Information about the different commits of a project are stored in this collection",
+            "fields": [
+                {
+                    "desc": "Issue IDs linked to this commit.",
+                    "field_name": "linked_issue_ids",
+                    "type": "ArrayType",
+                    "logical_type": "RID",
+                    "sub_type": "ObjectIdType",
+                    "reference_to": "issue"
+                }
+            ]
+        }
+    ]
+}
