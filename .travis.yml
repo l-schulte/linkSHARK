@@ -6,16 +6,17 @@ python:
 before_install:
   - printenv | grep -E '^TRAVIS_' > .env
   - sudo apt-get install -y build-essential wget git python3-pip python3-cffi
-  - sudo pip3 install -U pip setuptools
-  - sudo pip3 install Sphinx
-  - sudo pip3 install sphinx_rtd_theme
-  - sudo pip3 install ghp_import
+  - pip install -U pip setuptools
+  - pip install Sphinx
+  - pip install sphinx_rtd_theme
+  - pip install ghp_import
 
 script:
-  - sudo python3 setup.py install
+  - python setup.py install
 
 after_success:
   - make deploy
+  - cd plugin_packaging && ./build_plugin.sh
 
 deploy:
   provider: releases
