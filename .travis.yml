@@ -16,7 +16,7 @@ script:
 
 after_success:
   - make deploy
-  - cd plugin_packaging && ./build_plugin.sh
+  - cd plugin_packaging && ./build_plugin.sh && cd ..
 
 deploy:
   provider: releases
