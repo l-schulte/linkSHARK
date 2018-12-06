@@ -6,9 +6,8 @@ Issue linking for SmartSHARK.
 
 ### via PIP
 ```bash
-pip install https://github.com/smartshark/linkSHARK/zipball/master --process-dependency-links
+pip install https://github.com/smartshark/linkSHARK/zipball/master
 ```
-The ```--process-dependency-links``` switch is needed because we install pycoSHARK as a requirement directly from git.
 
 ### via setup.py
 ```bash
