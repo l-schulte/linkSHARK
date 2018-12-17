@@ -1,19 +1,19 @@
 {
     "name": "linkSHARK",
     "author": "Steffen Herbold",
-    "version": "2.0.1",
+    "version": "2.0",
     "plugin_type": "other",
     "linux_libraries": [],
     "description": "Plugin to add links between commits and issues.",
     "requires": [{
             "name": "vcsSHARK",
             "operator": ">=",
-            "version": "2.0.0"
+            "version": "0.1"
         },
         {
             "name": "issueSHARK",
             "operator": ">=",
-            "version": "2.0.0"
+            "version": "0.1"
         }],
     "arguments": [
         {

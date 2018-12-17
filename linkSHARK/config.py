@@ -20,6 +20,7 @@ def setup_logging(default_path=os.path.dirname(os.path.realpath(__file__)) + "/.
     else:
         logging.basicConfig(level=default_level)
 
+
 class ConfigValidationException(Exception):
     """
     Exception that is thrown if the config of class :class:`~issueshark.config.Config` could not be validated
@@ -43,7 +44,7 @@ class Config(object):
         self.password = args.db_password
         self.database = args.db_database
         self.authentication_db = args.db_authentication
-        self.debug = args.debug
+        self.log_level = args.log_level
         self.project_name = args.project_name
         self.ssl_enabled = args.ssl
         self.broken_keys = args.broken_keys
@@ -61,11 +62,11 @@ class Config(object):
             'CRITICAL': logging.CRITICAL
         }
 
-        return choices[self.debug]
+        return choices[self.log_level]
 
     def __str__(self):
         return "Config: host: %s, port: %s, user: %s, " \
-               "password: %s, database: %s, authentication_db: %s, ssl: %s, project_name:%s, debug: %s" % \
+               "password: %s, database: %s, authentication_db: %s, ssl: %s, project_name:%s, log_level: %s" % \
                (
                    self.host,
                    self.port,
@@ -75,8 +76,5 @@ class Config(object):
                    self.authentication_db,
                    self.ssl_enabled,
                    self.project_name,
-                   self.debug
+                   self.log_level
                )
-
-
-
