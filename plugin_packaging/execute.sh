@@ -1,7 +1,8 @@
 #!/bin/sh
 PLUGIN_PATH=$1
 
-COMMAND="python3.5 $1/main.py --db-database $4 --db-hostname $5 --db-port $6 --project-name $10"
+COMMAND="python3.5 $1/main.py --db-database $4 --db-hostname $5 --db-port $6 
+--project-name ${10}"
 
 if [ ! -z ${2} ] && [ ${2} != "None" ]; then
 	COMMAND="$COMMAND --db-user ${2}"
