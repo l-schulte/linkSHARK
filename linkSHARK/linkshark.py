@@ -6,7 +6,7 @@ import timeit
 import re
 
 from mongoengine import connect, DoesNotExist
-from pycoshark.mongomodels import VCSSystem, Commit, IssueSystem, Issue, Project
+from pycoshark.mongomodels import VCSSystem, Commit, IssueSystem, Issue, Project, Event, FileAction, File, Identity
 from pycoshark.utils import create_mongodb_uri_string
 
 
@@ -23,6 +23,10 @@ class LinkSHARK:
         self._direct_link_jira = re.compile('(?P<ID>[A-Z][A-Z0-9_]+-[0-9]+)', re.M)
         self._direct_link_bz = re.compile('(bug|issue|bugzilla)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
         self._direct_link_gh = re.compile('(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
+        self._direct_link_szz = re.compile('(\d+)', re.M)
+        self._szz_keyword = re.compile('(\s|^)fix(e[ds])?|(\s|^)bugs?|(\s|^)defects?|(\s|^)patch|(\s|^)issue[s]{0,1}',
+                                       re.I | re.M)
+        self._szz_only_number = re.compile(r'^[0-9\s\.\,;\:#]+$', re.M)
         self._broken_keys = {}
         self._correct_key = {}
         pass
@@ -70,12 +74,32 @@ class LinkSHARK:
         self._log.info("Starting issue linking")
         commit_count = Commit.objects(vcs_system_id=vcs_system.id).count()
 
-        for i,commit in enumerate(Commit.objects(vcs_system_id=vcs_system.id).only('id', 'revision_hash', 'vcs_system_id', 'message')):
+        issue_map = {}
+        for i,issue_system in enumerate(self._itss):
+            project_id_string = issue_system.url.split('=')[-1]
+            print(project_id_string)
+            for issue in Issue.objects(issue_system_id=issue_system.id):
+                if issue.external_id.startswith(project_id_string):
+                    try:
+                        issue_number = [int(s) for s in issue.external_id.split('-') if s.isdigit()][0]
+                    except IndexError:
+                        self._log.error("index error because SZZ currently only support JIRA, may not link all issues correctly:", issue.external_id)
+                        continue
+                    if issue_number not in issue_map:
+                        issue_map[issue_number] = [issue]
+                    else:
+                        issue_map[issue_number].append(issue)
+
+        for i,commit in enumerate(Commit.objects(vcs_system_id=vcs_system.id).only('id', 'revision_hash', 'vcs_system_id', 'message', 'author_id', 'committer_id')):
             if i%100==0:
                 self._log.info("%i/%i  commits finished",i,commit_count)
             issue_links = self._get_issue_links(commit)
             if len(issue_links) > 0:
                 commit.linked_issue_ids = issue_links
+                commit.save()
+            szz_links = self._get_szz_issue_links(commit, issue_map)
+            if len(szz_links) > 0:
+                commit.szz_issue_ids = szz_links
                 commit.save()
 
         elapsed = timeit.default_timer() - start_time
@@ -154,3 +178,105 @@ class LinkSHARK:
     def _error(self, message):
         # we log to warn because error gets to stdout in servershark
         self._log.warning(message)
+
+
+    def _get_szz_issue_links(self, commit, issue_map):
+        issue_links = []
+
+        commit_message = commit.message
+        git_svn_start = commit_message.find('git-svn-id:')
+        if git_svn_start>=0:
+            commit_message = commit_message[:git_svn_start]
+        syntactic_score = self._szz_syntactic_score(commit_message)
+
+        file_names = set()
+        for file_action in FileAction.objects(commit_id=commit.id).only('file_id'):
+            file_names.add(File.objects(id=file_action.file_id).get().path.split("/")[-1])
+
+        issues = None
+        for its in self._itss:
+            if 'jira' in its.url:
+                issues = self._szz_issues(commit, commit_message, issue_map, file_names, syntactic_score)
+        if issues is not None:
+            for issue in issues:
+                if issue.id in issue_links:
+                    continue
+                issue_links.append(issue.id)
+        return issue_links
+
+    def _szz_syntactic_score(self, commit_message):
+        syntactic_score = 0
+        self._szz_keyword = re.compile('(\s|^)fix(e[ds])?|(\s|^)bugs?|(\s|^)defects?|(\s|^)patch|(\s|^)issue[s]{0,1}',
+                                       re.I | re.M)
+        self._szz_only_number = re.compile(r'^[0-9\s\.\,;\:#]+$', re.M)
+
+        if self._direct_link_jira.match(commit_message):
+            syntactic_score += 1
+        if self._szz_keyword or self._szz_only_number:
+            # this second match should also contain only bug id matches, but this is ommitted as this could never change
+            # the links, because there is no difference between a syntactice score of 1 or 2
+            syntactic_score += 1
+        return syntactic_score
+
+    def _szz_issues(self, commit, commit_message, issue_map, file_names, syntactic_score):
+        ret = []
+        for m in self._direct_link_szz.finditer(commit_message):
+            issue_number = int(m.group(1))
+            if issue_number not in issue_map:
+                continue
+            for issue in issue_map[issue_number]:
+                if not issue.issue_type:
+                    self._log.warning('could not find issue type for issue %s' % issue.id)
+                    continue
+
+                if issue.issue_type.lower() == 'bug':
+                    is_fixed_bug = self._szz_is_fixed_bug(issue)
+                    has_description_match = self._szz_has_description_match(issue, commit)
+                    has_author_match = self._szz_has_author_match(issue, commit)
+                    has_files_attached = self._szz_has_files_attached(issue, file_names)
+                    semantic_score = is_fixed_bug+has_description_match+has_author_match+has_files_attached
+                    if semantic_score>1 or (semantic_score==1 and syntactic_score>0):
+                        ret.append(issue)
+        return ret
+
+    def _szz_is_fixed_bug(self, issue):
+        resolved = False
+        fixed = False
+        if issue.status in ['resolved', 'closed']:
+            resolved = True
+            fixed |= issue.resolution.lower() != 'duplicated'
+
+        for e in Event.objects.filter(issue_id=issue.id):
+            resolved |= e.status is not None and e.status.lower() == 'status' and e.new_value is not None and e.new_value.lower() in \
+                        ['resolved', 'closed']
+            fixed |= e.status is not None and e.status.lower() == 'resolution' and e.new_value is not None and e.new_value.lower() == 'fixed'
+        return resolved and fixed
+
+    def _szz_has_description_match(self, issue, commit_message):
+        return (issue.title is not None and issue.title in commit_message) or (issue.desc is not None and issue.desc in commit_message)
+
+    def _szz_has_author_match(self, issue, commit):
+        if not issue.assignee_id:
+            return False
+
+        assignee_identity = set()
+        committer_identity = set()
+        author_identity = set()
+
+        for identity in Identity.objects(people=issue.assignee_id):
+            assignee_identity.add(identity.id)
+        for identity in Identity.objects(people=commit.committer_id):
+            committer_identity.add(identity.id)
+        for identity in Identity.objects(people=commit.author_id):
+            author_identity.add(identity.id)
+
+        if len(assignee_identity) and len(committer_identity) and len(author_identity):
+            return len(assignee_identity & committer_identity) or len(assignee_identity & author_identity)
+        else:
+            return issue.assignee_id==commit.author_id or issue.assignee_id==commit.committer_id
+
+    def _szz_has_files_attached(self, issue, file_names):
+        for e in Event.objects.filter(issue_id=issue.id, status='Attachment'):
+            if e.new_value in file_names:
+                return True
+        return False

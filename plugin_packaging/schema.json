@@ -11,6 +11,14 @@
                     "logical_type": "RID",
                     "sub_type": "ObjectIdType",
                     "reference_to": "issue"
+                },
+                {
+                    "desc": "Issue IDs for bugs linked by the SZZ algorithm.",
+                    "field_name": "szz_issue_ids",
+                    "type": "ArrayType",
+                    "logical_type": "RID",
+                    "sub_type": "ObjectIdType",
+                    "reference_to": "issue"
                 }
             ]
         }
