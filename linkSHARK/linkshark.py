@@ -20,10 +20,11 @@ class LinkSHARK:
         """
         self._log = logging.getLogger("main")
         # precompile regex
-        self._direct_link_jira = re.compile('(?P<ID>[A-Z][A-Z0-9_]+-[0-9]+)', re.M)
+        self._direct_link_jira = re.compile('(?P<ID>[A-Z][A-Z0-9_]+-[0-9]+)', re.I | re.M)
         self._direct_link_bz = re.compile('(bug|issue|bugzilla)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
         self._direct_link_gh = re.compile('(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)', re.I | re.M)
         self._direct_link_szz = re.compile('(\d+)', re.M)
+        self._bug_id_pattern = re.compile(r"jira(\sissue)?\s\#?(?P<ID>\d+)", re.I | re.M)
         self._szz_keyword = re.compile('(\s|^)fix(e[ds])?|(\s|^)bugs?|(\s|^)defects?|(\s|^)patch|(\s|^)issue[s]{0,1}',
                                        re.I | re.M)
         self._szz_only_number = re.compile(r'^[0-9\s\.\,;\:#]+$', re.M)
@@ -57,19 +58,21 @@ class LinkSHARK:
             self._log.info(its.url)
             self._itss.append(its)
 
+        if len(cfg.correct_key)>0:
+            correct_keys_per_its = cfg.correct_key.split(';')
+            if len(correct_keys_per_its) != len(self._itss):
+                self._log_critical('--correct-key must correct keys for all issue tracking systems if specified')
+                sys.exit(1)
+            for i,correct_key in enumerate(correct_keys_per_its):
+                self._correct_key[self._itss[i].url] = correct_key
         if len(cfg.broken_keys)>0:
             broken_keys_per_its = cfg.broken_keys.split(';')
-            correct_keys_per_its = cfg.correct_key.split(';')
+
             if len(broken_keys_per_its) != len(self._itss):
                 self._log_critical('--broken-keys must correct keys for all issue tracking systems if specified. If there are no keys to correct for one of the ITS just use the name of the correct key twice itself')
                 sys.exit(1)
-            if len(broken_keys_per_its) != len(correct_keys_per_its):
-                self._log.critical('--broken-keys and --correct-key must specify corrections for the same number of issue tracking systems, seperated by semicolons.')
-                sys.exit(1)
             for i,broken_keys in enumerate(broken_keys_per_its):
                 self._broken_keys[self._itss[i].url] = broken_keys.split(',')
-            for i,correct_key in enumerate(correct_keys_per_its):
-                self._correct_key[self._itss[i].url] = correct_key
 
         self._log.info("Starting issue linking")
         commit_count = Commit.objects(vcs_system_id=vcs_system.id).count()
@@ -109,13 +112,17 @@ class LinkSHARK:
         issue_links = []
         self._errored_keys = set()
         self._found_keys = set()
+        commit_message = commit.message
+        git_svn_start = commit_message.find('git-svn-id:')
+        if git_svn_start >= 0:
+            commit_message = commit_message[:git_svn_start]
         for its in self._itss:
             if 'jira' in its.url:
-                issues = self._jira_issues(its, commit.message)
+                issues = self._jira_issues(its, commit_message)
             elif 'bugzilla' in its.url:
-                issues = self._bz_issues(its, commit.message)
+                issues = self._bz_issues(its, commit_message)
             elif 'github' in its.url:
-                issues = self._gh_issues(its, commit.message)
+                issues = self._gh_issues(its, commit_message)
 
             # linked issues are collected regardless of issue type
             for r in issues:
@@ -170,9 +177,17 @@ class LinkSHARK:
                 i = Issue.objects.get(issue_system_id=issue_system.id, external_id=issue_id)
                 self._found_keys.add(m.group('ID').upper())
                 ret.append(i)
-
             except Issue.DoesNotExist:
                 self._errored_keys.add(m.group('ID').upper())
+        # additional check in case the commit author referenced jira[\sissue]?\s\d+ instead of using the hyphen notation
+        if issue_system.url in self._correct_key:
+            for m in self._bug_id_pattern.finditer(message):
+                try:
+                    issue_id = self._correct_key[issue_system.url]+'-'+m.group('ID')
+                    issue = Issue.objects.get(issue_system_id=issue_system.id, external_id=issue_id)
+                    ret.append(issue)
+                except Issue.DoesNotExist:
+                    pass
         return ret
 
     def _error(self, message):
@@ -206,9 +221,7 @@ class LinkSHARK:
 
     def _szz_syntactic_score(self, commit_message):
         syntactic_score = 0
-        self._szz_keyword = re.compile('(\s|^)fix(e[ds])?|(\s|^)bugs?|(\s|^)defects?|(\s|^)patch|(\s|^)issue[s]{0,1}',
-                                       re.I | re.M)
-        self._szz_only_number = re.compile(r'^[0-9\s\.\,;\:#]+$', re.M)
+
 
         if self._direct_link_jira.match(commit_message):
             syntactic_score += 1
