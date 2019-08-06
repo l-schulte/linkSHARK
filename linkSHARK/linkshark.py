@@ -79,8 +79,8 @@ class LinkSHARK:
 
         issue_map = {}
         for i,issue_system in enumerate(self._itss):
-            project_id_string = issue_system.url.split('=')[-1]
-            print(project_id_string)
+            project_id_string = correct_keys_per_its[i]
+
             for issue in Issue.objects(issue_system_id=issue_system.id):
                 if issue.external_id.startswith(project_id_string):
                     try:
