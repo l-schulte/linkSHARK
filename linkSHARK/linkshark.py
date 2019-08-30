@@ -225,7 +225,7 @@ class LinkSHARK:
 
         if self._direct_link_jira.match(commit_message):
             syntactic_score += 1
-        if self._szz_keyword or self._szz_only_number:
+        if self._szz_keyword.match(commit_message) or self._szz_only_number.match(commit_message):
             # this second match should also contain only bug id matches, but this is ommitted as this could never change
             # the links, because there is no difference between a syntactice score of 1 or 2
             syntactic_score += 1
