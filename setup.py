@@ -10,9 +10,9 @@ if not sys.version_info[0] == 3:
 
 setup(
     name='linkSHARK',
-    version='2.1.0',
+    version='2.1.1',
     description='Issue linking for smartSHARK.',
-    install_requires=['mongoengine', 'pymongo', 'pycoshark>=1.0.30'],
+    install_requires=['mongoengine', 'pymongo', 'pycoshark>=1.2.6'],
     author='sherbold',
     author_email='herbold@cs.uni-goettingen.de',
     url='https://github.com/smartshark/linkSHARK',
