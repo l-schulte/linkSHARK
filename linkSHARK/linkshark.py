@@ -16,6 +16,8 @@ from pycoshark.mongomodels import (
     FileAction,
     File,
     Identity,
+    CodeReviewSystem,
+    CodeReview,
 )
 from pycoshark.utils import create_mongodb_uri_string
 
@@ -38,6 +40,7 @@ class LinkSHARK:
         self._direct_link_gh = re.compile(
             "(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)", re.I | re.M
         )
+        self._direct_link_lp = re.compile("bug: *#?(\d+)", re.I | re.M)
         self._direct_link_szz = re.compile("(\d+)", re.M)
         self._bug_id_pattern = re.compile(
             r"jira(\sissue)?\s\#?(?P<ID>\d+)", re.I | re.M
@@ -111,7 +114,9 @@ class LinkSHARK:
             project_id_string = correct_keys_per_its[i]
 
             for issue in Issue.objects(issue_system_id=issue_system.id):
-                if issue.external_id.startswith(project_id_string):
+                if project_id_string and issue.external_id.startswith(
+                    project_id_string
+                ):
                     try:
                         issue_number = [
                             int(s) for s in issue.external_id.split("-") if s.isdigit()
@@ -166,6 +171,8 @@ class LinkSHARK:
                 issues = self._bz_issues(its, commit_message)
             elif "github" in its.url:
                 issues = self._gh_issues(its, commit_message)
+            elif "launchpad" in its.url:
+                issues = self._lp_issues(its, commit_message)
 
             # linked issues are collected regardless of issue type
             for r in issues:
@@ -190,6 +197,20 @@ class LinkSHARK:
                 ret.append(i)
 
             except Issue.DoesNotExist:
+                self._errored_keys.add(m.group("ID").upper())
+        return ret
+
+    def _lp_issues(self, issue_system, message):
+        ret = []
+        for m in self._direct_link_lp.finditer(message):
+            try:
+                i = Issue.objects.get(
+                    issue_system_id=issue_system.id, external_id=m.group("ID").upper()
+                )
+                self._found_keys.add(m.group("ID").upper())
+                ret.append(i)
+
+            except DoesNotExist:
                 self._errored_keys.add(m.group("ID").upper())
         return ret
 
