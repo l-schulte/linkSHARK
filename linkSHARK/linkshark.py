@@ -40,7 +40,10 @@ class LinkSHARK:
         self._direct_link_gh = re.compile(
             "(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)", re.I | re.M
         )
-        self._direct_link_lp = re.compile("bug: *#?(\d+)", re.I | re.M)
+        self._direct_link_lp_bug = re.compile("bug:? *#?(\d+)", re.I | re.M)
+        self._direct_link_lp_blueprint = re.compile(
+            "(?:bp|blueprint)(?::? |/)((?:\w+-?)+)", re.I | re.M
+        )
         self._direct_link_szz = re.compile("(\d+)", re.M)
         self._bug_id_pattern = re.compile(
             r"jira(\sissue)?\s\#?(?P<ID>\d+)", re.I | re.M
@@ -202,17 +205,23 @@ class LinkSHARK:
 
     def _lp_issues(self, issue_system, message):
         ret = []
-        for m in self._direct_link_lp.finditer(message):
-            try:
-                i = Issue.objects.get(
-                    issue_system_id=issue_system.id, external_id=m.group("ID").upper()
-                )
-                self._found_keys.add(m.group("ID").upper())
-                ret.append(i)
 
-            except DoesNotExist:
-                self._errored_keys.add(m.group("ID").upper())
-        return ret
+        for iterator in [
+            self._direct_link_lp_bug.finditer(message),
+            self._direct_link_lp_blueprint.finditer(message),
+        ]:
+            for m in iterator:
+                try:
+                    i = Issue.objects.get(
+                        issue_system_id=issue_system.id,
+                        external_id=m.group("ID").upper(),
+                    )
+                    self._found_keys.add(m.group("ID").upper())
+                    ret.append(i)
+
+                except DoesNotExist:
+                    self._errored_keys.add(m.group("ID").upper())
+            return ret
 
     def _bz_issues(self, issue_system, message):
         ret = []
