@@ -114,7 +114,9 @@ class LinkSHARK:
 
         issue_map = {}
         for i, issue_system in enumerate(self._itss):
-            project_id_string = correct_keys_per_its[i]
+            project_id_string = (
+                correct_keys_per_its[i] if correct_keys_per_its else None
+            )
 
             for issue in Issue.objects(issue_system_id=issue_system.id):
                 if project_id_string and issue.external_id.startswith(
@@ -134,6 +136,8 @@ class LinkSHARK:
                         issue_map[issue_number] = [issue]
                     else:
                         issue_map[issue_number].append(issue)
+                else:
+                    issue_map[issue.external_id] = [issue]
 
         for i, commit in enumerate(
             Commit.objects(vcs_system_id=vcs_system.id).only(
