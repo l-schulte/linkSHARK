@@ -89,6 +89,7 @@ class LinkSHARK:
             self._log.info(its.url)
             self._itss.append(its)
 
+        correct_keys_per_its = None
         if len(cfg.correct_key) > 0:
             correct_keys_per_its = cfg.correct_key.split(";")
             if len(correct_keys_per_its) != len(self._itss):
