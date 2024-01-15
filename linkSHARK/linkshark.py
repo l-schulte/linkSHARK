@@ -40,9 +40,9 @@ class LinkSHARK:
         self._direct_link_gh = re.compile(
             "(bug|issue|close|fixes)[s]{0,1}[#\s]*(?P<ID>[0-9]+)", re.I | re.M
         )
-        self._direct_link_lp_bug = re.compile("bug:? *#?(\d+)", re.I | re.M)
+        self._direct_link_lp_bug = re.compile(r"bug:? *#?(?P<ID>\d+)", re.I | re.M)
         self._direct_link_lp_blueprint = re.compile(
-            "(?:bp|blueprint)(?::? |/)((?:\w+-?)+)", re.I | re.M
+            r"(?:bp|blueprint)(?::? |/)(?P<ID>(?:\w+-?)+)", re.I | re.M
         )
         self._direct_link_szz = re.compile("(\d+)", re.M)
         self._bug_id_pattern = re.compile(
