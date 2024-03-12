@@ -37,7 +37,7 @@ class LinkSHARK:
         self._direct_link_bz = re.compile(
             "(bug|issue|bugzilla)[s]{0,1}[#\s]*(?P<ID>[0-9]+)", re.I | re.M
         )
-        self._direct_link_gh = re.compile("[s(]#(?:[0-9]+)[)]?", re.I | re.M)
+        self._direct_link_gh = re.compile(r"[s(]#(?P<ID>[0-9]+)[)]?", re.I | re.M)
         self._direct_link_lp_bug = re.compile(r"bug:? *#?(?P<ID>\d+)", re.I | re.M)
         self._direct_link_lp_blueprint = re.compile(
             r"(?:bp|blueprint)(?::? |/)(?P<ID>(?:\w+-?)+)", re.I | re.M
