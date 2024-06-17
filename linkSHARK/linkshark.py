@@ -139,7 +139,7 @@ class LinkSHARK:
                     issue_map[issue.external_id] = [issue]
 
         for i, commit in enumerate(
-            Commit.objects(vcs_system_id=vcs_system.id).only(
+            Commit.objects(vcs_system_id=vcs_system.id).batch_size(100).only(
                 "id",
                 "revision_hash",
                 "vcs_system_id",
