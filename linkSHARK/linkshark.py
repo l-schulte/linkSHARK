@@ -139,7 +139,9 @@ class LinkSHARK:
                     issue_map[issue.external_id] = [issue]
 
         for i, commit in enumerate(
-            Commit.objects(vcs_system_id=vcs_system.id).batch_size(100).only(
+            Commit.objects(vcs_system_id=vcs_system.id)
+            .batch_size(100)
+            .only(
                 "id",
                 "revision_hash",
                 "vcs_system_id",
@@ -217,13 +219,13 @@ class LinkSHARK:
                 try:
                     i = Issue.objects.get(
                         issue_system_id=issue_system.id,
-                        external_id=m.group("ID").upper(),
+                        external_id=m.group("ID").lower(),
                     )
-                    self._found_keys.add(m.group("ID").upper())
+                    self._found_keys.add(m.group("ID").lower())
                     ret.append(i)
 
                 except DoesNotExist:
-                    self._errored_keys.add(m.group("ID").upper())
+                    self._errored_keys.add(m.group("ID").lower())
             return ret
 
     def _bz_issues(self, issue_system, message):
