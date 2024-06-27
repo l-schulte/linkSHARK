@@ -226,7 +226,7 @@ class LinkSHARK:
 
                 except DoesNotExist:
                     self._errored_keys.add(m.group("ID").lower())
-            return ret
+        return ret
 
     def _bz_issues(self, issue_system, message):
         ret = []
